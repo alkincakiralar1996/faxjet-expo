@@ -1,38 +1,37 @@
 {
   "expo": {
-    "name": "faxjet-expo",
+    "name": "FaxJet",
     "slug": "faxjet-expo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "faxjetexpo",
-    "userInterfaceStyle": "automatic",
+    "scheme": "faxjet",
+    "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.faxjet.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FaxJet uses your camera to scan paper documents. Images are never stored on our servers.",
+        "NSPhotoLibraryUsageDescription": "FaxJet accesses photos you select to fax. We never read your full library."
+      }
     },
     "android": {
+      "package": "com.faxjet.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0F3D2E",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
+          "backgroundColor": "#0F3D2E",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain"
         }
       ]
     ],
