@@ -9,14 +9,19 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.faxjet.app",
+      "bundleIdentifier": "com.pyxastudio.faxjet",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "FaxJet uses your camera to scan paper documents. Images are never stored on our servers.",
-        "NSPhotoLibraryUsageDescription": "FaxJet accesses photos you select to fax. We never read your full library."
+        "NSPhotoLibraryUsageDescription": "FaxJet accesses photos you select to fax. We never read your full library.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.faxjet.app",
+      "package": "com.pyxastudio.faxjet",
       "adaptiveIcon": {
         "backgroundColor": "#0F3D2E",
         "foregroundImage": "./assets/images/adaptive-icon.png"
