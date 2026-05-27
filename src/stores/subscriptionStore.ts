@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { differenceInCalendarDays } from 'date-fns';
 import type { Plan, SubscriptionStatus } from '@/types/subscription';
-import { secureStorage } from './persist';
+import { asyncStorage } from './persist';
 
 type State = {
   status: SubscriptionStatus;
@@ -94,7 +94,7 @@ export const useSubscriptionStore = create<State & Actions>()(
     }),
     {
       name: 'faxjet.subscription',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => asyncStorage),
       partialize: ({ status, plan, trialEndsAt, nextBillingAt }) => ({
         status,
         plan,

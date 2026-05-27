@@ -9,8 +9,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useUserStore } from '@/stores/userStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useFaxStore } from '@/stores/faxStore';
+import { ensureFirstLaunchClean } from '@/lib/firstLaunch';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+ensureFirstLaunchClean();
 
 export default function RootLayout() {
   const userHydrated = useUserStore((s) => s.hydrated);

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Segment } from '@/types/user';
-import { secureStorage } from './persist';
+import { asyncStorage } from './persist';
 
 type State = {
   hasSeenWelcome: boolean;
@@ -38,7 +38,7 @@ export const useUserStore = create<State & Actions>()(
     }),
     {
       name: 'faxjet.user',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => asyncStorage),
       partialize: ({ hasSeenWelcome, segment, onboardingCompleted }) => ({
         hasSeenWelcome,
         segment,
