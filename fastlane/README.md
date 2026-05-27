@@ -21,7 +21,9 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 [bundle exec] fastlane ios upload_privacy
 ```
 
-Upload App Privacy Details (data collection answers)
+Upload App Privacy Details (data collection answers) — requires Apple ID + 2FA
+
+Usage: fastlane ios upload_privacy username:your-apple-id@example.com
 
 ----
 
