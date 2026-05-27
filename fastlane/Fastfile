@@ -1,0 +1,13 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Upload App Privacy Details (data collection answers) — requires Apple ID + 2FA"
+  desc "Usage: fastlane ios upload_privacy username:your-apple-id@example.com"
+  lane :upload_privacy do |options|
+    upload_app_privacy_details_to_app_store(
+      username: options[:username] || ENV["FASTLANE_USER"],
+      app_identifier: "com.pyxastudio.faxjet",
+      json_path: "./fastlane/privacy.json",
+    )
+  end
+end
