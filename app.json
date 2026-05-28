@@ -38,7 +38,8 @@
           "imageWidth": 120,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

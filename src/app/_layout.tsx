@@ -10,6 +10,7 @@ import { useUserStore } from '@/stores/userStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useFaxStore } from '@/stores/faxStore';
 import { ensureFirstLaunchClean } from '@/lib/firstLaunch';
+import { useDeviceSync } from '@/hooks/useDeviceSync';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 ensureFirstLaunchClean();
@@ -20,6 +21,8 @@ export default function RootLayout() {
   const faxHydrated = useFaxStore((s) => s.hydrated);
 
   const ready = userHydrated && subHydrated && faxHydrated;
+
+  useDeviceSync(ready);
 
   useEffect(() => {
     if (ready) {

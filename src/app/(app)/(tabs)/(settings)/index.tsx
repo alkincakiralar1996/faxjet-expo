@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -9,11 +9,37 @@ import { SubscriptionCard } from '@/components/faxjet/SubscriptionCard';
 import { DevTrigger } from '@/components/faxjet/DevMenu';
 import { colors } from '@/theme/tokens';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { useUserStore } from '@/stores/userStore';
+import { backgroundPost } from '@/lib/api';
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isCancelled = useSubscriptionStore((s) => s.status === 'cancelled');
+  const serverUserId = useUserStore((s) => s.serverUserId);
+
+  const sendFeedback = () => {
+    Alert.prompt(
+      'Send feedback',
+      'Tell us what could be better.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send',
+          onPress: (message?: string) => {
+            const trimmed = message?.trim();
+            if (!trimmed) return;
+            backgroundPost('/api/feedback', {
+              ...(serverUserId ? { user_id: serverUserId } : {}),
+              message: trimmed,
+            });
+            Alert.alert('Thanks!', 'Your feedback was sent.');
+          },
+        },
+      ],
+      'plain-text',
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.gray50 }}>
@@ -70,7 +96,12 @@ export default function Settings() {
             <SettingsGroup label="Support">
               <SettingsRow icon="circle" label="Help center" />
               <SettingsRow icon="paperplane" label="Contact support" />
-              <SettingsRow icon="alert" label="Send feedback" isLast />
+              <SettingsRow
+                icon="alert"
+                label="Send feedback"
+                isLast
+                onPress={sendFeedback}
+              />
             </SettingsGroup>
 
             <SettingsGroup label="About">
