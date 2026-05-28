@@ -1,0 +1,31 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": { "simulator": true }
+    },
+    "production": {
+      "autoIncrement": false,
+      "ios": {
+        "distribution": "store"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "/Users/alkincakiralar/.ascelerate/AuthKey_P8CL9DH6FK.p8",
+        "ascApiKeyId": "P8CL9DH6FK",
+        "ascApiKeyIssuerId": "99e6e86b-ca15-4aaa-9086-136b93c84393"
+      }
+    }
+  }
+}
