@@ -3,6 +3,8 @@ import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { TopBar } from '@/components/ui/TopBar';
 import { IconButton } from '@/components/ui/IconButton';
 import { Icon } from '@/icons/Icon';
@@ -10,6 +12,37 @@ import { Button } from '@/components/ui/Button';
 import { colors } from '@/theme/tokens';
 import { useFaxStore } from '@/stores/faxStore';
 import { formatLongTimestamp, formatPhoneDisplay } from '@/lib/format';
+import type { Fax } from '@/types/fax';
+
+function receiptHtml(fax: Fax): string {
+  const row = (k: string, v: string) =>
+    `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`;
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>
+    body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#0A0A0A;padding:40px}
+    .head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #F3F4F6;padding-bottom:18px}
+    h1{font-size:22px;margin:0}.muted{color:#6B7280;font-size:12px}
+    .badge{background:#E8F5EF;color:#10B981;font-weight:700;font-size:12px;letter-spacing:.6px;padding:5px 12px;border-radius:999px}
+    .label{color:#6B7280;font-size:12px;letter-spacing:.8px;font-weight:700;margin-top:22px}
+    .conf{font-family:Menlo,monospace;font-size:28px;font-weight:700;margin:6px 0 18px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    td{padding:10px 0;border-bottom:1px solid #F3F4F6}td.k{color:#6B7280}td.v{text-align:right;font-weight:700}
+    .foot{margin-top:22px;background:#E8F5EF;color:#1B5E47;padding:12px 14px;border-radius:8px;font-size:12px}
+  </style></head><body>
+    <div class="head"><div><h1>FaxJet</h1><div class="muted">Delivery Receipt</div></div><span class="badge">DELIVERED</span></div>
+    <div class="label">CONFIRMATION NUMBER</div>
+    <div class="conf">${fax.confirmationNumber ?? '—'}</div>
+    <table>
+      ${row('Recipient', formatPhoneDisplay(fax.recipientNumber))}
+      ${row('Sent at', formatLongTimestamp(fax.sentAt))}
+      ${row('Delivered at', fax.deliveredAt ? formatLongTimestamp(fax.deliveredAt) : '—')}
+      ${row('Transmission', fax.durationSeconds ? `${fax.durationSeconds} seconds` : '—')}
+      ${row('Pages', String(fax.pages))}
+      ${row('Cover page', fax.cover ? 'Included' : 'Not included')}
+      ${row('Resolution', 'Fine (200 dpi)')}
+    </table>
+    <div class="foot">Transmitted via HIPAA-compliant fax gateway · 256-bit encrypted</div>
+  </body></html>`;
+}
 
 export default function PDFReceipt() {
   const insets = useSafeAreaInsets();
@@ -20,6 +53,21 @@ export default function PDFReceipt() {
   if (!fax) {
     return null;
   }
+
+  const sharePdf = async () => {
+    try {
+      const { uri } = await Print.printToFileAsync({ html: receiptHtml(fax) });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          UTI: 'com.adobe.pdf',
+          dialogTitle: 'FaxJet receipt',
+        });
+      }
+    } catch {
+      // user cancelled or print failed
+    }
+  };
 
   return (
     <View
@@ -36,7 +84,7 @@ export default function PDFReceipt() {
             Delivery Receipt
           </Text>
         }
-        right={<IconButton name="share" color={colors.green700} />}
+        right={<IconButton name="share" color={colors.green700} onPress={sharePdf} />}
       />
 
       <ScrollView
@@ -319,8 +367,8 @@ export default function PDFReceipt() {
           gap: 10,
         }}
       >
-        <Button label="Share Receipt" icon="share" />
-        <Button kind="secondary" label="Save to Files" icon="download" />
+        <Button label="Share Receipt" icon="share" onPress={sharePdf} />
+        <Button kind="secondary" label="Save to Files" icon="download" onPress={sharePdf} />
       </BlurView>
     </View>
   );

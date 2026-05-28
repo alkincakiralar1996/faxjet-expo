@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { isToday, isYesterday } from 'date-fns';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HistoryRow } from '@/components/faxjet/HistoryRow';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/icons/Icon';
 import { colors } from '@/theme/tokens';
 import { useFaxStore, type FilterOption } from '@/stores/faxStore';
+import { useUserStore } from '@/stores/userStore';
 import { useArtificialDelay } from '@/hooks/useArtificialDelay';
 import type { Fax } from '@/types/fax';
 
@@ -42,7 +43,27 @@ export default function History() {
   const filter = useFaxStore((s) => s.filter);
   const setFilter = useFaxStore((s) => s.setFilter);
   const faxes = useFaxStore((s) => s.faxes);
+  const loadFromServer = useFaxStore((s) => s.loadFromServer);
+  const serverUserId = useUserStore((s) => s.serverUserId);
   const loading = useArtificialDelay(800);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh metadata from the backend whenever the tab gains focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (serverUserId) void loadFromServer(serverUserId);
+    }, [serverUserId, loadFromServer]),
+  );
+
+  const onRefresh = useCallback(async () => {
+    if (!serverUserId) return;
+    setRefreshing(true);
+    try {
+      await loadFromServer(serverUserId);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [serverUserId, loadFromServer]);
 
   const filtered = useMemo(() => {
     if (filter === 'All') return faxes;
@@ -81,6 +102,13 @@ export default function History() {
           paddingBottom: 24,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.green700}
+          />
+        }
       >
         {loading ? (
           <View style={{ paddingHorizontal: 20, gap: 16 }}>

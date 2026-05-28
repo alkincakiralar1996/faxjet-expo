@@ -21,9 +21,13 @@ import { PaperPlane } from '@/components/faxjet/PaperPlane';
 import { colors } from '@/theme/tokens';
 import { useSendDraftStore } from '@/stores/sendDraftStore';
 import { useFaxStore } from '@/stores/faxStore';
+import { useUserStore } from '@/stores/userStore';
+import { createFax, serverFaxToLocal } from '@/lib/faxApi';
+import { savePages } from '@/lib/faxStorage';
 import {
   startMockSend,
   type SendProgressEvent,
+  type SendOutcome,
 } from '@/lib/mockSendSimulator';
 import { trigger } from '@/hooks/useHaptics';
 import { formatPhone } from '@/lib/format';
@@ -46,8 +50,12 @@ export default function Sending() {
   const documentTitle = useSendDraftStore((s) => s.documentTitle);
   const coverEnabled = useSendDraftStore((s) => s.coverEnabled);
   const cover = useSendDraftStore((s) => s.cover);
+  const draftPages = useSendDraftStore((s) => s.pages);
+  const attachment = useSendDraftStore((s) => s.attachment);
+  const country = useSendDraftStore((s) => s.recipientCountry);
   const resetDraft = useSendDraftStore((s) => s.reset);
   const addFax = useFaxStore((s) => s.addFax);
+  const serverUserId = useUserStore((s) => s.serverUserId);
   const reduce = useReduceMotion();
 
   const [phase, setPhase] = useState<Phase>({
@@ -87,14 +95,60 @@ export default function Sending() {
   useEffect(() => {
     mountedRef.current = true;
     // Snapshot draft values up front so a later resetDraft() can't blank them.
+    const recipientLabel = cover.to
+      ? `${cover.to}${cover.subject ? ` — ${cover.subject}` : ''}`.trim()
+      : undefined;
+    const totalPages = Math.max(1, pageCount + (coverEnabled ? 1 : 0));
+    // The actual page image/PDF URIs to persist on-device (never uploaded).
+    const pageUris = attachment
+      ? [attachment.uri]
+      : draftPages.map((p) => p.uri);
     const snapshot = {
       recipientNumber: recipient,
-      recipientLabel: cover.to
-        ? `${cover.to} — ${cover.subject || ''}`.trim()
-        : undefined,
-      pages: pageCount,
+      recipientLabel,
+      pages: totalPages,
       cover: coverEnabled ? cover : undefined,
     };
+
+    // The mock simulator drives the progress animation + decides the outcome
+    // (delivered / 10%-fail). On settle we persist the real record via the API
+    // and save the page files locally, keyed by the server-issued fax id.
+    const finalize = async (outcome: SendOutcome) => {
+      const created = await createFax({
+        user_id: serverUserId ?? undefined,
+        recipient_number: recipient,
+        recipient_label: recipientLabel,
+        recipient_country: country,
+        page_count: totalPages,
+        has_cover: coverEnabled,
+        cover: coverEnabled ? cover : undefined,
+        status: outcome.status,
+        duration_seconds: outcome.fax.durationSeconds,
+        failure_reason:
+          outcome.status === 'failed' ? outcome.reason : undefined,
+      });
+      // Fall back to the simulator's local fax if the API is unreachable.
+      const fax = created ? serverFaxToLocal(created) : outcome.fax;
+      if (pageUris.length > 0) {
+        try {
+          await savePages(fax.id, pageUris);
+        } catch {
+          // non-fatal — detail screen shows a placeholder if pages are missing
+        }
+      }
+      addFax(fax);
+      if (outcome.status === 'delivered') resetDraft();
+      if (!mountedRef.current) return;
+      if (outcome.status === 'delivered') {
+        trigger('success');
+        setPhase({ kind: 'delivered', fax });
+      } else {
+        // Keep draft so Try Again can reuse the captured pages.
+        trigger('error');
+        setPhase({ kind: 'failed', fax, reason: outcome.reason });
+      }
+    };
+
     const cancel = startMockSend(
       snapshot,
       (event) => {
@@ -103,21 +157,7 @@ export default function Sending() {
         progress.value = withTiming(event.percent / 100, { duration: 250 });
       },
       (outcome) => {
-        if (!mountedRef.current) return;
-        addFax(outcome.fax);
-        if (outcome.status === 'delivered') {
-          resetDraft();
-          trigger('success');
-          setPhase({ kind: 'delivered', fax: outcome.fax });
-        } else {
-          // Keep draft so Try Again can reuse pageCount/cover.
-          trigger('error');
-          setPhase({
-            kind: 'failed',
-            fax: outcome.fax,
-            reason: outcome.reason,
-          });
-        }
+        void finalize(outcome);
       },
       { speed: 0.35 },
     );

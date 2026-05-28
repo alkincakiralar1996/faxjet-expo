@@ -10,13 +10,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pyxastudio.faxjet",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "config": {
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "FaxJet uses your camera to scan paper documents. Images are never stored on our servers.",
-        "NSPhotoLibraryUsageDescription": "FaxJet accesses photos you select to fax. We never read your full library.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -39,7 +37,31 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-sharing",
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FaxJet uses your camera to scan paper documents. Images are never stored on our servers.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FaxJet accesses photos you select to fax. We never read your full library."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "FaxJet accesses photos you select to fax. We never read your full library.",
+          "savePhotosPermission": "FaxJet saves a fax receipt to your photos only when you choose to.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

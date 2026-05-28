@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '@/icons/Icon';
@@ -8,7 +9,7 @@ import { colors } from '@/theme/tokens';
 import { useSendDraftStore } from '@/stores/sendDraftStore';
 
 type Source = {
-  id: 'camera' | 'photo' | 'files' | 'cloud';
+  id: 'camera' | 'photo' | 'files';
   title: string;
   sub?: string;
   icon: IconName;
@@ -17,7 +18,7 @@ type Source = {
   disabled?: boolean;
 };
 
-const SOURCES: { primary: Source; grid: Source[]; trailing: Source } = {
+const SOURCES: { primary: Source; grid: Source[] } = {
   primary: {
     id: 'camera',
     title: 'Scan with Camera',
@@ -42,32 +43,54 @@ const SOURCES: { primary: Source; grid: Source[]; trailing: Source } = {
       iconColor: colors.green700,
     },
   ],
-  trailing: {
-    id: 'cloud',
-    title: 'Cloud',
-    sub: 'Google Drive, Dropbox',
-    icon: 'cloud',
-    iconBg: colors.gray100,
-    iconColor: colors.gray500,
-    disabled: true,
-  },
 };
 
 export default function SourcePicker() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const startDraft = useSendDraftStore((s) => s.startDraft);
+  const setPages = useSendDraftStore((s) => s.setPages);
+  const setAttachment = useSendDraftStore((s) => s.setAttachment);
+
+  const pickFiles = async () => {
+    const res = await DocumentPicker.getDocumentAsync({
+      type: ['image/*', 'application/pdf'],
+      multiple: true,
+      copyToCacheDirectory: true,
+    });
+    if (res.canceled) return;
+    const assets = res.assets ?? [];
+    const pdf = assets.find(
+      (a) =>
+        a.mimeType === 'application/pdf' ||
+        a.name?.toLowerCase().endsWith('.pdf'),
+    );
+    startDraft('files');
+    if (pdf) {
+      setAttachment({
+        uri: pdf.uri,
+        name: pdf.name ?? 'document.pdf',
+        mime: 'application/pdf',
+      });
+    } else {
+      const imgs = assets.filter((a) => (a.mimeType ?? '').startsWith('image/'));
+      if (imgs.length === 0) return;
+      setPages(imgs.map((a) => ({ uri: a.uri, width: 0, height: 0 })));
+    }
+    router.dismiss();
+    router.navigate('/(app)/(tabs)/(home)/send/preview');
+  };
 
   const handleSelect = (id: Source['id']) => {
-    if (id === 'cloud') return;
+    if (id === 'files') {
+      void pickFiles();
+      return;
+    }
     router.dismiss();
     if (id === 'camera') {
       router.navigate('/(app)/(tabs)/(home)/send/permission-camera');
-    } else if (id === 'photo') {
-      router.navigate('/(app)/(tabs)/(home)/send/permission-photo');
     } else {
-      startDraft('files');
-      router.navigate('/(app)/(tabs)/(home)/send/preview');
+      router.navigate('/(app)/(tabs)/(home)/send/permission-photo');
     }
   };
 
@@ -152,14 +175,6 @@ export default function SourcePicker() {
               <SourceCard source={s} onPress={() => handleSelect(s.id)} />
             </View>
           ))}
-        </View>
-
-        <View style={{ marginTop: 10 }}>
-          <SourceCard
-            source={SOURCES.trailing}
-            onPress={() => handleSelect(SOURCES.trailing.id)}
-            full
-          />
         </View>
 
         <HapticPressable

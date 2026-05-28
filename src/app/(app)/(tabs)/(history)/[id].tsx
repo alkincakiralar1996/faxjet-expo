@@ -1,4 +1,6 @@
-import { ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, Share, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TopBar } from '@/components/ui/TopBar';
@@ -7,9 +9,10 @@ import { HapticPressable } from '@/components/ui/HapticPressable';
 import { Icon } from '@/icons/Icon';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { DocumentPreview } from '@/components/illustrations/DocumentPreview';
 import { colors } from '@/theme/tokens';
 import { useFaxStore } from '@/stores/faxStore';
+import { useSendDraftStore } from '@/stores/sendDraftStore';
+import { getPages } from '@/lib/faxStorage';
 import {
   formatFaxDetailTimestamp,
   formatPhoneDisplay,
@@ -22,6 +25,24 @@ export default function FaxDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const fax = useFaxStore((s) => s.getById(id));
   const loading = useArtificialDelay(600);
+  const startDraft = useSendDraftStore((s) => s.startDraft);
+  const setPages = useSendDraftStore((s) => s.setPages);
+  const setRecipientNumber = useSendDraftStore((s) => s.setRecipientNumber);
+  const setCoverEnabled = useSendDraftStore((s) => s.setCoverEnabled);
+  const setCover = useSendDraftStore((s) => s.setCover);
+  const [pageUris, setPageUris] = useState<string[]>([]);
+
+  // Page images live on this device only; load them by fax id.
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    void getPages(id).then((uris) => {
+      if (mounted) setPageUris(uris);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
 
   if (loading) {
     return (
@@ -149,6 +170,50 @@ export default function FaxDetail() {
     failed: colors.error,
   }[fax.status];
 
+  // Re-seed a send draft from this fax's local pages, then go to recipient
+  // (prefilled number for "same", empty for "different").
+  const reuseDraftAndGo = async (changeNumber: boolean) => {
+    const uris = await getPages(fax.id);
+    if (uris.length === 0) {
+      Alert.alert(
+        'Pages unavailable',
+        "The original pages for this fax aren't on this device. Start a new fax instead.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'New Fax',
+            onPress: () => router.navigate('/(app)/(tabs)/(home)/send/source'),
+          },
+        ],
+      );
+      return;
+    }
+    startDraft('photo');
+    setPages(uris.map((u) => ({ uri: u, width: 0, height: 0 })));
+    if (fax.cover) {
+      setCoverEnabled(true);
+      setCover(fax.cover);
+    }
+    setRecipientNumber(changeNumber ? '' : fax.recipientNumber);
+    router.navigate('/(app)/(tabs)/(home)/send/recipient');
+  };
+
+  const shareFax = async () => {
+    const lines = [
+      `Fax to ${fax.recipientLabel}`,
+      phoneLabel,
+      `Status: ${fax.status}`,
+      fax.confirmationNumber ? `Confirmation: ${fax.confirmationNumber}` : '',
+      `Sent: ${formatFaxDetailTimestamp(fax.sentAt)}`,
+      `${fax.pages} page${fax.pages === 1 ? '' : 's'}`,
+    ].filter(Boolean);
+    try {
+      await Share.share({ message: lines.join('\n') });
+    } catch {
+      // user cancelled
+    }
+  };
+
   return (
     <View
       style={{
@@ -160,7 +225,7 @@ export default function FaxDetail() {
       <TopBar
         left={<IconButton name="chevron-left" onPress={() => router.back()} />}
         center={<Text style={{ fontSize: 17, fontWeight: '600', color: colors.black }}>Fax Details</Text>}
-        right={<IconButton name="share" />}
+        right={<IconButton name="share" onPress={shareFax} />}
       />
 
       <ScrollView
@@ -230,21 +295,53 @@ export default function FaxDetail() {
         >
           PAGES SENT · {fax.pages}
         </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10, paddingBottom: 16 }}
-        >
-          {Array.from({ length: Math.min(fax.pages, 6) }).map((_, i) => (
-            <DocumentPreview
-              key={i}
-              pageNumber={i + 1}
-              totalPages={fax.pages}
-              variant="thumb"
-              active={i === 0}
-            />
-          ))}
-        </ScrollView>
+        {pageUris.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 10, paddingBottom: 16 }}
+          >
+            {pageUris.map((uri, i) => (
+              <Image
+                key={uri}
+                source={{ uri }}
+                style={{
+                  width: 76,
+                  height: 100,
+                  borderRadius: 12,
+                  backgroundColor: '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: colors.gray300,
+                }}
+                contentFit="cover"
+                accessibilityLabel={`Page ${i + 1}`}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.04,
+              shadowRadius: 2,
+              elevation: 1,
+            }}
+          >
+            <Icon name="doc" size={22} color={colors.gray500} />
+            <Text style={{ flex: 1, fontSize: 13, color: colors.gray500, lineHeight: 18 }}>
+              Page previews aren&apos;t available on this device. Pages are stored
+              locally and don&apos;t transfer when you reinstall.
+            </Text>
+          </View>
+        )}
 
         {/* Metadata */}
         <Text
@@ -366,11 +463,16 @@ export default function FaxDetail() {
               }
             />
           ) : null}
-          <ActionRow icon="refresh" label="Resend to same number" />
+          <ActionRow
+            icon="refresh"
+            label="Resend to same number"
+            onPress={() => reuseDraftAndGo(false)}
+          />
           <ActionRow
             icon="paperplane"
             label="Send to different number"
             isLast
+            onPress={() => reuseDraftAndGo(true)}
           />
         </View>
       </ScrollView>

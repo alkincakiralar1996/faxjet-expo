@@ -9,37 +9,21 @@ import { SubscriptionCard } from '@/components/faxjet/SubscriptionCard';
 import { DevTrigger } from '@/components/faxjet/DevMenu';
 import { colors } from '@/theme/tokens';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
-import { useUserStore } from '@/stores/userStore';
-import { backgroundPost } from '@/lib/api';
+import { useSettings } from '@/lib/useSettings';
+import { openExternal } from '@/lib/links';
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isCancelled = useSubscriptionStore((s) => s.status === 'cancelled');
-  const serverUserId = useUserStore((s) => s.serverUserId);
+  const settings = useSettings();
 
-  const sendFeedback = () => {
-    Alert.prompt(
-      'Send feedback',
-      'Tell us what could be better.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send',
-          onPress: (message?: string) => {
-            const trimmed = message?.trim();
-            if (!trimmed) return;
-            backgroundPost('/api/feedback', {
-              ...(serverUserId ? { user_id: serverUserId } : {}),
-              message: trimmed,
-            });
-            Alert.alert('Thanks!', 'Your feedback was sent.');
-          },
-        },
-      ],
-      'plain-text',
+  const go = (path: string) => () => router.navigate(path as never);
+  const comingSoon = () =>
+    Alert.alert(
+      'Coming soon',
+      'Subscription management arrives in a future update.',
     );
-  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.gray50 }}>
@@ -77,37 +61,72 @@ export default function Settings() {
 
         <SettingsGroup label="Subscription">
           <SubscriptionCard
-            onManage={() => {}}
+            onManage={comingSoon}
             onResubscribe={() => router.navigate('/(app)/resubscribe')}
           />
         </SettingsGroup>
 
         <SettingsGroup label="Account">
-          <SettingsRow icon="check-circle" label="Restore purchases" />
-          <SettingsRow icon="shield" label="Data & privacy" isLast />
+          <SettingsRow
+            icon="check-circle"
+            label="Restore purchases"
+            onPress={comingSoon}
+          />
+          <SettingsRow
+            icon="shield"
+            label="Data & privacy"
+            isLast
+            onPress={go('/(app)/(tabs)/(settings)/data-privacy')}
+          />
         </SettingsGroup>
 
         {isCancelled ? (
           <SettingsGroup label="Support">
-            <SettingsRow icon="paperplane" label="Contact support" isLast />
+            <SettingsRow
+              icon="paperplane"
+              label="Contact support"
+              isLast
+              onPress={go('/(app)/(tabs)/(settings)/contact-support')}
+            />
           </SettingsGroup>
         ) : (
           <>
             <SettingsGroup label="Support">
-              <SettingsRow icon="circle" label="Help center" />
-              <SettingsRow icon="paperplane" label="Contact support" />
+              <SettingsRow
+                icon="circle"
+                label="Help center"
+                onPress={go('/(app)/(tabs)/(settings)/help-center')}
+              />
+              <SettingsRow
+                icon="paperplane"
+                label="Contact support"
+                onPress={go('/(app)/(tabs)/(settings)/contact-support')}
+              />
               <SettingsRow
                 icon="alert"
                 label="Send feedback"
                 isLast
-                onPress={sendFeedback}
+                onPress={go('/(app)/(tabs)/(settings)/feedback')}
               />
             </SettingsGroup>
 
             <SettingsGroup label="About">
-              <SettingsRow icon="check" label="Rate FaxJet" />
-              <SettingsRow icon="doc" label="Terms of Service" />
-              <SettingsRow icon="lock-shield" label="Privacy Policy" isLast />
+              <SettingsRow
+                icon="check"
+                label="Rate FaxJet"
+                onPress={() => openExternal(settings.appStoreUrl)}
+              />
+              <SettingsRow
+                icon="doc"
+                label="Terms of Service"
+                onPress={() => openExternal(settings.termsUrl)}
+              />
+              <SettingsRow
+                icon="lock-shield"
+                label="Privacy Policy"
+                isLast
+                onPress={() => openExternal(settings.privacyUrl)}
+              />
             </SettingsGroup>
           </>
         )}
@@ -120,7 +139,7 @@ export default function Settings() {
             marginTop: 8,
           }}
         >
-          FaxJet · Version 1.0.0 (build 42)
+          FaxJet · Version 1.0.0 (build 3)
         </Text>
       </ScrollView>
     </View>
