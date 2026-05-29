@@ -1,105 +1,74 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { differenceInCalendarDays } from 'date-fns';
-import type { Plan, SubscriptionStatus } from '@/types/subscription';
+import type { Plan } from '@/types/subscription';
+import type { CustomerInfo } from '@/lib/revenuecat';
+import { ENTITLEMENT_ID, planFromProductId } from '@/lib/revenuecat';
 import { asyncStorage } from './persist';
 
 type State = {
-  status: SubscriptionStatus;
+  isSubscribed: boolean;
   plan: Plan | null;
-  trialEndsAt: string | null;
-  nextBillingAt: string | null;
+  expiresAt: string | null;
+  willRenew: boolean;
   hydrated: boolean;
 };
 
 type Actions = {
-  startTrial: (plan: Plan) => void;
-  markPastDue: () => void;
-  cancel: () => void;
-  resubscribe: (plan?: Plan) => void;
-  expire: () => void;
-  reset: () => void;
-  setHydrated: () => void;
-  isInTrial: () => boolean;
-  daysLeftInTrial: () => number;
+  // Source of truth: RevenueCat CustomerInfo (set by useSubscriptionSync).
+  setFromCustomerInfo: (info: CustomerInfo | null) => void;
+  // Dev/sandbox override only.
+  setSubscribed: (v: boolean) => void;
   canSendFax: () => boolean;
-  effectiveStatus: () => SubscriptionStatus;
+  setHydrated: () => void;
+  reset: () => void;
 };
-
-const TRIAL_DAYS = 3;
-
-function isTrialPast(trialEndsAt: string | null): boolean {
-  if (!trialEndsAt) return false;
-  return new Date(trialEndsAt).getTime() < Date.now();
-}
 
 export const useSubscriptionStore = create<State & Actions>()(
   persist(
     (set, get) => ({
-      status: 'none',
+      isSubscribed: false,
       plan: null,
-      trialEndsAt: null,
-      nextBillingAt: null,
+      expiresAt: null,
+      willRenew: false,
       hydrated: false,
-      startTrial: (plan) => {
-        const ends = new Date();
-        ends.setDate(ends.getDate() + TRIAL_DAYS);
+
+      setFromCustomerInfo: (info) => {
+        const ent = info?.entitlements.active[ENTITLEMENT_ID];
+        if (!ent) {
+          set({ isSubscribed: false, plan: null, expiresAt: null, willRenew: false });
+          return;
+        }
         set({
-          status: 'trial',
-          plan,
-          trialEndsAt: ends.toISOString(),
-          nextBillingAt: ends.toISOString(),
+          isSubscribed: true,
+          plan: planFromProductId(ent.productIdentifier),
+          expiresAt: ent.expirationDate ?? null,
+          willRenew: ent.willRenew,
         });
       },
-      markPastDue: () => set({ status: 'past_due' }),
-      cancel: () => set({ status: 'cancelled' }),
-      resubscribe: (plan) =>
-        set((s) => ({
-          status: 'active',
-          plan: plan ?? s.plan ?? 'weekly',
-          trialEndsAt: null,
-          nextBillingAt: new Date(
-            Date.now() + 7 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
-        })),
-      expire: () => set({ status: 'expired', trialEndsAt: null }),
-      reset: () =>
+
+      setSubscribed: (v) =>
         set({
-          status: 'none',
-          plan: null,
-          trialEndsAt: null,
-          nextBillingAt: null,
+          isSubscribed: v,
+          plan: v ? (get().plan ?? 'weekly') : null,
+          willRenew: v,
         }),
+
+      canSendFax: () => get().isSubscribed,
+
       setHydrated: () => set({ hydrated: true }),
-      isInTrial: () => get().effectiveStatus() === 'trial',
-      daysLeftInTrial: () => {
-        const ends = get().trialEndsAt;
-        if (!ends) return 0;
-        return Math.max(
-          0,
-          differenceInCalendarDays(new Date(ends), new Date()),
-        );
-      },
-      canSendFax: () => {
-        const s = get().effectiveStatus();
-        return s === 'trial' || s === 'active' || s === 'cancelled';
-      },
-      effectiveStatus: () => {
-        const { status, trialEndsAt } = get();
-        if (status === 'trial' && isTrialPast(trialEndsAt)) {
-          return 'expired';
-        }
-        return status;
-      },
+      reset: () =>
+        set({ isSubscribed: false, plan: null, expiresAt: null, willRenew: false }),
     }),
     {
       name: 'faxjet.subscription',
       storage: createJSONStorage(() => asyncStorage),
-      partialize: ({ status, plan, trialEndsAt, nextBillingAt }) => ({
-        status,
+      // Cache the entitlement for an instant offline-first boot gate; RC
+      // refreshes it on launch + via the update listener.
+      partialize: ({ isSubscribed, plan, expiresAt, willRenew }) => ({
+        isSubscribed,
         plan,
-        trialEndsAt,
-        nextBillingAt,
+        expiresAt,
+        willRenew,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();

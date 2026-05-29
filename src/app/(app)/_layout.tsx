@@ -10,22 +10,7 @@ export default function AppRootLayout() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
-        name="past-due"
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade',
-          contentStyle: { backgroundColor: 'transparent' },
-        }}
-      />
-      <Stack.Screen
-        name="reengage-paywall"
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
-        name="resubscribe"
+        name="paywall"
         options={{
           presentation: 'modal',
           animation: 'slide_from_bottom',

@@ -62,19 +62,12 @@ function DevMenu({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const resetOnboarding = useUserStore((s) => s.resetOnboarding);
   const resetSubscription = useSubscriptionStore((s) => s.reset);
-  const startTrial = useSubscriptionStore((s) => s.startTrial);
-  const markPastDue = useSubscriptionStore((s) => s.markPastDue);
-  const cancel = useSubscriptionStore((s) => s.cancel);
-  const expire = useSubscriptionStore((s) => s.expire);
-  const subStatus = useSubscriptionStore((s) => s.status);
+  const setSubscribed = useSubscriptionStore((s) => s.setSubscribed);
+  const isSubscribed = useSubscriptionStore((s) => s.isSubscribed);
   const resetSeed = useFaxStore((s) => s.resetSeed);
   const clearFaxes = useFaxStore((s) => s.clear);
   const addFax = useFaxStore((s) => s.addFax);
-  const toggleTrialEnd = useAppStore((s) => s.toggleForceTrialEndingTomorrow);
-  const togglePastDue = useAppStore((s) => s.toggleForcePastDue);
   const toggleNetErr = useAppStore((s) => s.toggleForceNetworkError);
-  const forceTrialEnd = useAppStore((s) => s.forceTrialEndingTomorrow);
-  const forcePastDue = useAppStore((s) => s.forcePastDue);
   const forceNetErr = useAppStore((s) => s.forceNetworkError);
 
   const ROWS: {
@@ -95,55 +88,19 @@ function DevMenu({ onClose }: { onClose: () => void }) {
       danger: true,
     },
     {
+      label: isSubscribed ? 'Subscribed: ON (sandbox)' : 'Subscribed: OFF (sandbox)',
+      icon: 'check-circle',
+      action: () => {
+        setSubscribed(!isSubscribed);
+      },
+      detail: 'Local override for UI testing only',
+    },
+    {
       label: 'Reset subscription',
       icon: 'refresh',
       action: () => {
         resetSubscription();
         onClose();
-      },
-    },
-    {
-      label: 'Start trial (3 days)',
-      icon: 'paperplane',
-      action: () => {
-        startTrial('weekly');
-        onClose();
-      },
-    },
-    {
-      label: forceTrialEnd ? 'Trial-ending: ON' : 'Trial-ending: OFF',
-      icon: 'clock',
-      action: toggleTrialEnd,
-      detail: 'Forces 1 day left banner',
-    },
-    {
-      label: forcePastDue ? 'Past-due: ON' : 'Past-due: OFF',
-      icon: 'alert',
-      action: togglePastDue,
-    },
-    {
-      label: 'Mark past_due (real)',
-      icon: 'alert',
-      action: () => {
-        markPastDue();
-        onClose();
-      },
-    },
-    {
-      label: 'Cancel subscription',
-      icon: 'x',
-      action: () => {
-        cancel();
-        onClose();
-      },
-    },
-    {
-      label: 'Expire (re-engagement)',
-      icon: 'clock',
-      action: () => {
-        expire();
-        onClose();
-        router.replace('/');
       },
     },
     {
@@ -193,19 +150,11 @@ function DevMenu({ onClose }: { onClose: () => void }) {
       },
     },
     {
-      label: 'Open re-engagement paywall',
+      label: 'Open paywall',
       icon: 'paperplane',
       action: () => {
         onClose();
-        router.navigate('/(app)/reengage-paywall');
-      },
-    },
-    {
-      label: 'Open resubscribe flow',
-      icon: 'paperplane',
-      action: () => {
-        onClose();
-        router.navigate('/(app)/resubscribe');
+        router.navigate('/(app)/paywall');
       },
     },
     {
@@ -299,7 +248,7 @@ function DevMenu({ onClose }: { onClose: () => void }) {
               Dev Menu
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
-              Hidden — triple-tap FaxJet logo to open · status: {subStatus}
+              Hidden — triple-tap FaxJet logo to open · {isSubscribed ? 'subscribed' : 'free'}
             </Text>
           </View>
         </View>

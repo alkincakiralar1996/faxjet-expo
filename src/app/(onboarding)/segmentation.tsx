@@ -53,6 +53,7 @@ export default function Segmentation() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const setSegment = useUserStore((s) => s.setSegment);
+  const completeOnboarding = useUserStore((s) => s.completeOnboarding);
   const [picked, setPicked] = useState<Segment | null>(null);
   const pickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -69,7 +70,8 @@ export default function Segmentation() {
     setSegment(id);
     if (pickTimer.current) clearTimeout(pickTimer.current);
     pickTimer.current = setTimeout(() => {
-      router.push({ pathname: '/(onboarding)/paywall', params: { segment: id } });
+      completeOnboarding();
+      router.replace('/(app)');
     }, 220);
   };
 

@@ -19,6 +19,7 @@ import { CoverPagePreview } from '@/components/faxjet/CoverPagePreview';
 import { Icon } from '@/icons/Icon';
 import { colors } from '@/theme/tokens';
 import { useSendDraftStore } from '@/stores/sendDraftStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { formatPhone, toE164US } from '@/lib/format';
 
 export default function Recipient() {
@@ -33,6 +34,7 @@ export default function Recipient() {
   const setRecipientNumber = useSendDraftStore((s) => s.setRecipientNumber);
   const setCoverEnabled = useSendDraftStore((s) => s.setCoverEnabled);
   const setCoverField = useSendDraftStore((s) => s.setCoverField);
+  const canSendFax = useSubscriptionStore((s) => s.canSendFax);
 
   const [focused, setFocused] = useState(false);
 
@@ -47,11 +49,16 @@ export default function Recipient() {
 
   const onSend = () => {
     if (!valid) return;
+    const recipient = toE164US(digits);
+    // Gate: subscribers send; everyone else sees the paywall, which proceeds
+    // to the send on a successful purchase (draft is preserved in the store).
+    if (!canSendFax()) {
+      router.navigate({ pathname: '/(app)/paywall', params: { recipient } });
+      return;
+    }
     router.navigate({
       pathname: '/(app)/(tabs)/(home)/send/sending',
-      params: {
-        recipient: toE164US(digits),
-      },
+      params: { recipient },
     });
   };
 

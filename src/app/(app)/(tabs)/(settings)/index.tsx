@@ -1,4 +1,4 @@
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Linking, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -11,19 +11,30 @@ import { colors } from '@/theme/tokens';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useSettings } from '@/lib/useSettings';
 import { openExternal } from '@/lib/links';
+import { hasProEntitlement, restore } from '@/lib/revenuecat';
+
+const MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const isCancelled = useSubscriptionStore((s) => s.status === 'cancelled');
+  const setFromCustomerInfo = useSubscriptionStore((s) => s.setFromCustomerInfo);
   const settings = useSettings();
 
   const go = (path: string) => () => router.navigate(path as never);
-  const comingSoon = () =>
+  const onManage = () => {
+    void Linking.openURL(MANAGE_SUBSCRIPTIONS_URL);
+  };
+  const onRestore = async () => {
+    const info = await restore();
+    setFromCustomerInfo(info);
     Alert.alert(
-      'Coming soon',
-      'Subscription management arrives in a future update.',
+      hasProEntitlement(info) ? 'Purchases restored' : 'Nothing to restore',
+      hasProEntitlement(info)
+        ? 'Your subscription is active.'
+        : 'No active subscription was found for your account.',
     );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.gray50 }}>
@@ -61,8 +72,8 @@ export default function Settings() {
 
         <SettingsGroup label="Subscription">
           <SubscriptionCard
-            onManage={comingSoon}
-            onResubscribe={() => router.navigate('/(app)/resubscribe')}
+            onManage={onManage}
+            onSubscribe={() => router.navigate('/(app)/paywall')}
           />
         </SettingsGroup>
 
@@ -70,7 +81,7 @@ export default function Settings() {
           <SettingsRow
             icon="check-circle"
             label="Restore purchases"
-            onPress={comingSoon}
+            onPress={onRestore}
           />
           <SettingsRow
             icon="shield"
@@ -80,56 +91,43 @@ export default function Settings() {
           />
         </SettingsGroup>
 
-        {isCancelled ? (
-          <SettingsGroup label="Support">
-            <SettingsRow
-              icon="paperplane"
-              label="Contact support"
-              isLast
-              onPress={go('/(app)/(tabs)/(settings)/contact-support')}
-            />
-          </SettingsGroup>
-        ) : (
-          <>
-            <SettingsGroup label="Support">
-              <SettingsRow
-                icon="circle"
-                label="Help center"
-                onPress={go('/(app)/(tabs)/(settings)/help-center')}
-              />
-              <SettingsRow
-                icon="paperplane"
-                label="Contact support"
-                onPress={go('/(app)/(tabs)/(settings)/contact-support')}
-              />
-              <SettingsRow
-                icon="alert"
-                label="Send feedback"
-                isLast
-                onPress={go('/(app)/(tabs)/(settings)/feedback')}
-              />
-            </SettingsGroup>
+        <SettingsGroup label="Support">
+          <SettingsRow
+            icon="circle"
+            label="Help center"
+            onPress={go('/(app)/(tabs)/(settings)/help-center')}
+          />
+          <SettingsRow
+            icon="paperplane"
+            label="Contact support"
+            onPress={go('/(app)/(tabs)/(settings)/contact-support')}
+          />
+          <SettingsRow
+            icon="alert"
+            label="Send feedback"
+            isLast
+            onPress={go('/(app)/(tabs)/(settings)/feedback')}
+          />
+        </SettingsGroup>
 
-            <SettingsGroup label="About">
-              <SettingsRow
-                icon="check"
-                label="Rate FaxJet"
-                onPress={() => openExternal(settings.appStoreUrl)}
-              />
-              <SettingsRow
-                icon="doc"
-                label="Terms of Service"
-                onPress={() => openExternal(settings.termsUrl)}
-              />
-              <SettingsRow
-                icon="lock-shield"
-                label="Privacy Policy"
-                isLast
-                onPress={() => openExternal(settings.privacyUrl)}
-              />
-            </SettingsGroup>
-          </>
-        )}
+        <SettingsGroup label="About">
+          <SettingsRow
+            icon="check"
+            label="Rate FaxJet"
+            onPress={() => openExternal(settings.appStoreUrl)}
+          />
+          <SettingsRow
+            icon="doc"
+            label="Terms of Service"
+            onPress={() => openExternal(settings.termsUrl)}
+          />
+          <SettingsRow
+            icon="lock-shield"
+            label="Privacy Policy"
+            isLast
+            onPress={() => openExternal(settings.privacyUrl)}
+          />
+        </SettingsGroup>
 
         <Text
           style={{
@@ -139,7 +137,7 @@ export default function Settings() {
             marginTop: 8,
           }}
         >
-          FaxJet · Version 1.0.0 (build 3)
+          FaxJet · Version 1.0.0 (build 4)
         </Text>
       </ScrollView>
     </View>

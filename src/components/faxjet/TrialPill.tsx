@@ -3,14 +3,16 @@ import { colors } from '@/theme/tokens';
 
 export type TrialPillProps = {
   label: string;
-  tone?: 'warning' | 'danger';
+  tone?: 'warning' | 'danger' | 'success';
 };
 
 export function TrialPill({ label, tone = 'warning' }: TrialPillProps) {
   const palette =
     tone === 'danger'
       ? { bg: colors.errorBg, fg: colors.error }
-      : { bg: colors.amber100, fg: colors.warning };
+      : tone === 'success'
+        ? { bg: colors.green100, fg: colors.green700 }
+        : { bg: colors.amber100, fg: colors.warning };
   return (
     <View
       style={{

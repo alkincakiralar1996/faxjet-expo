@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -8,41 +7,20 @@ import { HistoryRow } from '@/components/faxjet/HistoryRow';
 import { TrialPill } from '@/components/faxjet/TrialPill';
 import { EmptyState } from '@/components/faxjet/EmptyState';
 import { SkeletonListCard } from '@/components/faxjet/SkeletonRow';
-import { Banner } from '@/components/ui/Banner';
 import { PaperPlane } from '@/components/faxjet/PaperPlane';
 import { colors } from '@/theme/tokens';
 import { useFaxStore } from '@/stores/faxStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
-import { useAppStore } from '@/stores/appStore';
 import { useArtificialDelay } from '@/hooks/useArtificialDelay';
-import { trigger } from '@/hooks/useHaptics';
 
 export default function Home() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const faxes = useFaxStore((s) => s.faxes);
-  const subStatus = useSubscriptionStore((s) => s.effectiveStatus());
-  const daysLeft = useSubscriptionStore((s) => s.daysLeftInTrial());
-  const forceTrialEnding = useAppStore((s) => s.forceTrialEndingTomorrow);
-  const forcePastDue = useAppStore((s) => s.forcePastDue);
+  const isSubscribed = useSubscriptionStore((s) => s.isSubscribed);
   const loading = useArtificialDelay(800);
 
-  const effectiveStatus = forcePastDue ? 'past_due' : subStatus;
-  const showTrialEnding =
-    effectiveStatus === 'trial' && (forceTrialEnding || daysLeft <= 1);
-  const showPastDue = effectiveStatus === 'past_due';
   const recent = faxes.slice(0, 4);
-
-  const prevTrialEnding = useRef(showTrialEnding);
-  const prevPastDue = useRef(showPastDue);
-  useEffect(() => {
-    if (showTrialEnding && !prevTrialEnding.current) trigger('warning');
-    prevTrialEnding.current = showTrialEnding;
-  }, [showTrialEnding]);
-  useEffect(() => {
-    if (showPastDue && !prevPastDue.current) trigger('error');
-    prevPastDue.current = showPastDue;
-  }, [showPastDue]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.gray50 }}>
@@ -78,53 +56,14 @@ export default function Home() {
               FaxJet
             </Text>
           </View>
-          {effectiveStatus === 'trial' && !forcePastDue ? (
-            <TrialPill
-              label={
-                daysLeft === 1
-                  ? '1 day left'
-                  : `${daysLeft} days left in trial`
-              }
-            />
-          ) : null}
-          {effectiveStatus === 'past_due' ? (
-            <TrialPill label="Past due" tone="danger" />
-          ) : null}
+          {isSubscribed ? <TrialPill label="Pro" tone="success" /> : null}
         </View>
-
-        {showTrialEnding ? (
-          <Banner
-            tone="warning"
-            icon="clock"
-            label="Your trial ends tomorrow. You'll be billed $9.99."
-            action={{
-              label: 'Manage',
-              onPress: () => router.navigate('/(app)/(tabs)/(settings)'),
-            }}
-          />
-        ) : null}
-        {showPastDue ? (
-          <Banner
-            tone="danger"
-            icon="alert"
-            label="Your payment didn't go through."
-            action={{
-              label: 'Update',
-              onPress: () => router.navigate('/(app)/past-due'),
-            }}
-          />
-        ) : null}
 
         <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
           <HeroSendCard
-            locked={showPastDue}
-            onPress={() => {
-              if (showPastDue) {
-                router.navigate('/(app)/past-due');
-              } else {
-                router.navigate('/(app)/(tabs)/(home)/send/source');
-              }
-            }}
+            onPress={() =>
+              router.navigate('/(app)/(tabs)/(home)/send/source')
+            }
           />
         </View>
 
